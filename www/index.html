@@ -25,30 +25,29 @@
 
 <body>
 
-<ion-nav-bar class="bar-positive">
+    <ion-nav-bar class="bar-calm">
+        <ion-nav-buttons side="right" ng-init="initialize()">
+            <span class="badge badge-energized " ng-model="$root.airport.countTotalResponses">{{$root.airport.countTotalResponses}}</span>
 
-</ion-nav-bar>
+            <button class="button button-icon button-clear ion-android-sync" ng-click="$root.sendToCloud()">
+            </button>
+            <span class="badge badge-assertive" ng-model="$root.airport.countLocalResponses">{{$root.airport.countLocalResponses}}</span>
+        </ion-nav-buttons>
+    </ion-nav-bar>
 
 <ion-nav-view></ion-nav-view>
 
 <script id="templates/tabs.html" type="text/ng-template">
 
-    <ion-tabs class="tabs-icon-top tabs-positive">
+    <ion-pane>
+        <ion-nav-view name="home-tab"></ion-nav-view>
+    </ion-pane>
 
-        <ion-tab title="Intro" icon="ion-home" href="#/tab/intro">
-            <ion-nav-view name="intro-tab"></ion-nav-view>
-        </ion-tab>
-
-        <ion-tab title="Poll" icon="ion-plane" href="#/tab/home">
-            <ion-nav-view name="home-tab"></ion-nav-view>
-        </ion-tab>
-
-    </ion-tabs>
 </script>
 
 <script id="templates/intro.html" type="text/ng-template">
     <ion-view view-title="Intro Airport Show 2015">
-        <ion-content class="padding has-header">
+        <ion-content class="padding">
             <video width="100%" height="100%" preload="metadata" autoplay loop>
                 <source src="img/intro.mp4" type="video/mp4">
                 Your browser does not support the video tag.
@@ -60,9 +59,16 @@
 <script id="templates/home.html" type="text/ng-template">
     <ion-view view-title="Airport Show 2015">
         <ion-content class="padding bg-home">
-            <p>
-                <a class="button icon icon-right ion-chevron-right" href="#/tab/identityscan" ng-click="clearFields()">Start Poll</a>
-            </p>
+            <div class="content-area">
+                <div class="row row-center">
+                    <div class="col" style="padding-top: 150px"><a class="button button-calm button-airport button-full button-large" style="height: 100px;
+  line-height: 100px;
+  font-size: 48px;" href="#/tab/identityscan">Start Poll</a></div>
+                </div>
+                <!--
+                <a class="button button-airport" style="position: absolute; right: 100px; bottom: 100px; width: 200px" href="#/tab/identityscan" ng-click="clearFields()">Start Poll</a>
+                -->
+            </div>
         </ion-content>
     </ion-view>
 </script>
@@ -70,13 +76,48 @@
 <script id="templates/identity-scan.html" type="text/ng-template">
     <ion-view view-title="Reveal your Identity">
         <ion-content class="padding bg-survey">
-            <p>Please scan your barcode or enter your registration number.</p>
-            <button class="button" ng-click="scanBarcode()">Scan</button>
-            <input type="text" ng-model="regNumber" placeholder="0000000000" />
-            <p><!--
-                <a class="button icon ion-home" href="#/tab/home"> Home</a>-->
-                <a class="button icon icon-right ion-chevron-right" ng-disabled="!regNumber" href="#/tab/favoriteairport">Next</a>
-            </p>
+            <div class="content-area" ng-init="initialize()">
+                <div class="row row-center">
+                    <div class="col"><h3>Please Scan your barcode</h3></div>
+                </div>
+
+                <div class="row row-center">
+                    <div class="col"><button class="button button-calm button-airport button-full button-large" ng-click="scanBarcode()">Scan</button></div>
+                </div>
+
+                <div class="row row-center">
+                    <div class="col"><h2 style="text-align: center">OR</h2></div>
+                </div>
+
+                <div class="row">
+                    <div class="col"><h3>Enter your Registration Number</h3></div>
+                </div>
+
+                <div class="row">
+                    <div class="col">
+                    <label class="item-input-wrapper">
+                        <input type="text" ng-model="$root.airport.regNumber" class="item-input button-large" style="width: 100%; font-size: 36px" />
+                    </label>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col">
+                        <a class="button button-calm button-airport button-full button-large icon icon-right ion-chevron-right" ng-disabled="!$root.airport.regNumber" href="#/tab/favoriteairport">Next</a>
+                    </div>
+                </div>
+<!--
+                <h3 class="item-input-inset">Please Scan your barcode</h3>
+                <button class="button button-airport item-input-inset" ng-click="scanBarcode()">Scan</button>
+                <h2>OR</h2>
+                <h3 class="item-input-wrapper">Enter your Registration Number.</h3>
+                <div class="item-input-wrapper">
+                    <input type="text" ng-model="regNumber" placeholder="6281006709812" class="item-input" value="{{regNumber}}" />
+                </div>
+                    <div class="item-input-inset">
+                    <a class="button button-airport icon icon-right ion-chevron-right" ng-disabled="!regNumber" href="#/tab/favoriteairport">Next</a>
+                </div>-->
+            </div>
         </ion-content>
     </ion-view>
 </script>
@@ -84,6 +125,39 @@
 <script id="templates/favorite-airport.html" type="text/ng-template">
     <ion-view view-title="Choose Your Favorite Airport">
         <ion-content class="padding bg-survey">
+            <div class="content-area">
+                <div class="row row-center">
+                    <div class="col"><h3>Which is your favorite Airport?</h3></div>
+                </div>
+
+                <div class="row row-center">
+                    <div class="col">
+                        <div class="item-input-inset">
+                            <label class="item-input-wrapper">
+                                <i class="icon ion-plane placeholder-icon" style="font-size: 20px"></i>
+                                <input class="button-large" style="width: 100%; font-size: 18px;" type="search" placeholder="Search" ng-change="search()" ng-model="data.search" />
+                            </label>
+                            <button class="button button-clear" ng-click="data.search = ''">
+                                <i class="icon ion-close-circled" style="font-size: 24px"></i>
+                            </button>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="row row-center">
+                    <div class="col list" style="margin-top: -20px;">
+                        <li class="item" ng-repeat="airline in data.airlines"><a ng-click="fillInput(airline)">{{airline.name + ' (' + airline.iata + ')'}}</a></li>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col">
+                        <a class="button button-calm button-airport button-full button-large icon ion-chevron-right" href="#/tab/thankyou" ng-disabled="!data.search" ng-click="submitData()"> Finish</a>
+                    </div>
+                </div>
+             <!--
         <p>Which is your favorite Airport?</p><br>
             <div class="item-input-inset">
                 <label class="item-input-wrapper">
@@ -99,8 +173,9 @@
                 <li class="item" ng-repeat="airline in data.airlines"><a ng-click="fillInput(airline)">{{airline.name + ' (' + airline.iata + ')'}}</a></li>
             </div>
             <p>
-                <a class="button icon ion-chevron-right" href="#/tab/thankyou" ng-disabled="!data.search" ng-click="submitData()"> Finish</a>
-            </p>
+                <a class="button button-airport icon ion-chevron-right" href="#/tab/thankyou" ng-disabled="!data.search" ng-click="submitData()"> Finish</a>
+            </p>-->
+            </div>
         </ion-content>
     </ion-view>
 </script>
@@ -108,10 +183,18 @@
 <script id="templates/thank-you.html" type="text/ng-template">
     <ion-view view-title="Thank You">
         <ion-content class="padding bg-survey">
-            <h3>Your opinion is important for us. Thanks for your participation.</h3>
-            <p>
-                <a class="button icon icon-right ion-chevron-right" href="#/tab/identityscan" ng-click="clearFields()">Start Over</a>
-            </p>
+            <div class="content-area">
+                <div class="row row-center">
+                    <div class="col"><h3>Your opinion is important for us. Thanks for your participation.</h3></div>
+                </div>
+
+                <div class="row row-center">
+                    <div class="col">
+                        <a class="button button-calm button-airport button-full button-large icon icon-right ion-chevron-right" ng-click="goToHome()">Start Over</a>
+                    </div>
+                </div>
+
+            </div>
         </ion-content>
     </ion-view>
 </script>

@@ -9,6 +9,7 @@ globals.checkedServer = false;
 globals.assetServer = "http://backend-ifeed.rhcloud.com/api/locations/active"; //http://backend-ifeed.rhcloud.com/api/locations/accountId/active
 globals.assetSubDir = "assets";
 globals.surveyUri = "http://backend-ifeed.rhcloud.com/api/surveys/5540b163d80bd368de2f4bd5";
+globals.responseUri = "http://backend-ifeed.rhcloud.com/api/device/responses";
 
 airlines = airlines.sort(function(a, b) {
 
@@ -22,7 +23,7 @@ airlines = airlines.sort(function(a, b) {
 
 var app = angular.module('app', ['ionic', 'ngCordova'])
 
-    .run(function($ionicPlatform) {
+    .run(function($ionicPlatform, $rootScope) {
         $ionicPlatform.ready(function() {
             // Hide the accessory bar by default (remove this to show the accessory bar above the keyboard
             // for form inputs)
@@ -32,6 +33,10 @@ var app = angular.module('app', ['ionic', 'ngCordova'])
             if(window.StatusBar) {
                 StatusBar.styleDefault();
             }
+            if(!$rootScope.airport)
+                $rootScope.airport = {"regNumber": '', "countLocalResponses": '', "countTotalResponses": 0};
+
+            //console.log(" $rootScope.airport "+$rootScope.airport.countLocalResponses)
         });
     })
 
@@ -89,17 +94,30 @@ var app = angular.module('app', ['ionic', 'ngCordova'])
                 }
             });
 
-        $urlRouterProvider.otherwise("/tab/intro");
+        $urlRouterProvider.otherwise("/tab/home");
 
     });
 
-
-
-app.controller("AppCtrl", ['$scope', '$cordovaBarcodeScanner', '$http', 'FlightDataService', function($scope, $cordovaBarcodeScanner, $http, FlightDataService) {
+app.controller("AppCtrl", ['$scope', '$rootScope', '$cordovaBarcodeScanner', '$cordovaFile', '$cordovaNetwork', '$http', 'FlightDataService', function($scope, $rootScope, $cordovaBarcodeScanner, $cordovaFile, $cordovaNetwork, $http, FlightDataService) {
 
     console.log("AppCtrl");
+    //console.log($rootScope.airport);
 
-    $scope.data = { "airlines" : [], "search" : '' };
+    $scope.initialize = function(){
+        $rootScope.airport = {"regNumber": '', "countLocalResponses": '', "countTotalResponses": 0};
+        //console.log("$rootScope.airport "+$rootScope.airport);
+        $rootScope.airport.countLocalResponses = $scope.countResponseData();
+        $rootScope.airport.countTotalResponses = $scope.getTotalResponses();
+        //console.log("$rootScope.airport "+$rootScope.airport.countLocalResponses);
+    };
+
+    $scope.goToHome = function() {
+        console.log("reloading");
+        location.href = '#/tab/identityscan';
+        location.reload();
+    };
+
+    $scope.data = {"airlines": [], "search": ''};
 
     $scope.search = function() {
 
@@ -108,16 +126,18 @@ app.controller("AppCtrl", ['$scope', '$cordovaBarcodeScanner', '$http', 'FlightD
                 $scope.data.airlines = matches;
             }
         )
-    }
+    };
 
     $scope.fillInput = function(item) {
         $scope.data.search = item.name + ' (' + item.iata + ')';
         $scope.favAirport = $scope.data.search;
-    }
+        $scope.data.airlines = [];
+    };
 
     $scope.scanBarcode = function() {
         $cordovaBarcodeScanner.scan().then(function(imageData) {
-            $scope.regNumber = imageData.text;
+            $rootScope.airport.regNumber = imageData.text;
+            //alert($scope.regNumber);
             //console.log("Barcode Format -> " + imageData.format);
             //console.log("Cancelled -> " + imageData.cancelled);
         }, function(error) {
@@ -125,100 +145,153 @@ app.controller("AppCtrl", ['$scope', '$cordovaBarcodeScanner', '$http', 'FlightD
         });
     };
 
-
+/*
     if(window.localStorage.getItem('surveyData')) {
-
         var localSurveyData = JSON.parse(window.localStorage.getItem('surveyData'));
         $scope.surveyData = localSurveyData;
-        console.log($scope.surveyData);
-        /*
-         angular.forEach(localSurveyData[0], function (value, key) {
-         //handle the data
-         console.log(key + ': ' + value);
-         });
-         */
+        //console.log($scope.surveyData);
     }
     else {
-        // Simple GET request example :
-        $http.get(globals.surveyUri).
-            success(function (data, status, headers, config) {
-                // this callback will be called asynchronously
-                // when the response is available
-                $scope.surveyData = data;
-                //console.log($scope.surveyData);
+        try{
 
-                var dataToStore = JSON.stringify(data);
-                window.localStorage.setItem('surveyData', dataToStore);
+            // Simple GET request example :
+            $http.get(globals.surveyUri).
+                success(function (data, status, headers, config) {
+                    // this callback will be called asynchronously
+                    // when the response is available
+                    $scope.surveyData = data;
+                    //console.log($scope.surveyData);
 
-                //window.localStorage.clear();
+                    var dataToStore = JSON.stringify(data);
+                    window.localStorage.setItem('surveyData', dataToStore);
 
-            }).
-            error(function (data, status, headers, config) {
-                // called asynchronously if an error occurs
-                // or server returns response with an error status.
-                console.log("something went wrong while trying getting survey");
-            });
+                }).
+                error(function (data, status, headers, config) {
+                    // called asynchronously if an error occurs
+                    // or server returns response with an error status.
+                    console.log("something went wrong while trying getting survey");
+                });
+
+        } catch(e) {
+            console.error("Error calling API survey method: " + e.message);
+        }
     }
 
     if(window.localStorage.getItem('locationData')) {
         var localLocationData = JSON.parse(window.localStorage.getItem('locationData'));
         $scope.locationData = localLocationData;
-        console.log($scope.locationData);
-        /*
-         angular.forEach(localLocationData[0], function (value, key) {
-         //handle the data
-         console.log(key + ': ' + value);
-         });
-         */
+        //console.log($scope.locationData);
     }
     else {
-        // Simple GET request example :
-        $http.get(globals.assetServer).
-            success(function (data, status, headers, config) {
-                // this callback will be called asynchronously
-                // when the response is available
-                $scope.locationData = data[0];
-                //console.log($scope.location);
+        try{
+            // Simple GET request example :
+            $http.get(globals.assetServer).
+                success(function (data, status, headers, config) {
+                    // this callback will be called asynchronously
+                    // when the response is available
+                    $scope.locationData = data[0];
+                    //console.log($scope.location);
 
-                var dataToStore = JSON.stringify(data[0]);
-                window.localStorage.setItem('locationData', dataToStore);
+                    var dataToStore = JSON.stringify(data[0]);
+                    window.localStorage.setItem('locationData', dataToStore);
 
-                //window.localStorage.clear();
-            }).
-            error(function (data, status, headers, config) {
-                // called asynchronously if an error occurs
-                // or server returns response with an error status.
-                console.log("something went wrong while trying getting location");
-            });
+                    //window.localStorage.clear();
+                }).
+                error(function (data, status, headers, config) {
+                    // called asynchronously if an error occurs
+                    // or server returns response with an error status.
+                    console.log("something went wrong while trying getting location");
+                });
+        } catch(e) {
+            console.error("Error calling API active location method: " + e.message);
+        }
     }
+*/
+
+    $scope.storeLocalResponseData = function(response) {
+        //var dataToStore = JSON.stringify(response);
+
+        var localResponseData = $scope.getLocalResponseData();
+
+        if(localResponseData)
+        {
+            localResponseData.push(response);
+        }
+        else
+        {
+            var localResponseData = [];
+            localResponseData.push(response);
+        }
+
+        window.localStorage.setItem('responseData', JSON.stringify(localResponseData));
+        window.localStorage.setItem('totalResponses', $scope.getTotalResponses() + 1);
+        $scope.storeInFileSystem(JSON.stringify(response));
+        //console.log($scope.getLocalResponseData());
+    };
+
+    $scope.getLocalResponseData = function() {
+        return JSON.parse(window.localStorage.getItem('responseData'));
+    };
+
+    $scope.getTotalResponses = function() {
+        try {
+            if (window.localStorage.getItem('totalResponses'))
+                return parseInt(window.localStorage.getItem('totalResponses'));
+            else
+                return 0;
+        } catch(e) {
+            console.error("Error in getting totalResponses from localStorage");
+            return 999;
+        }
+    };
+
+    $scope.storeInFileSystem = function(response){
+        ionic.Platform.ready(function() {
+            try {
+                $cordovaFile.writeExistingFile(cordova.file.externalApplicationStorageDirectory, "responses.json", ',' + response)
+                    .then(function (success) {
+                        // success
+                    }, function (error) {
+                        // error
+                    });
+            } catch(e) {
+                    console.error("Error writing in existing file: " + e.message);
+            }
+        });
+
+    };
+
+    $scope.countResponseData = function() {
+        if ($scope.getLocalResponseData()) {
+            return $scope.getLocalResponseData().length;
+        }
+        return 0;
+    };
 
     $scope.submitData = function() {
 
-        //console.log($scope.locationData);
-        //console.log($scope.surveyData);
-
-        console.log($scope.regNumber);
+        //console.log($rootScope.airport);
 
         var response = {};
         response.dateTaken = new Date();
-        response.locationId = $scope.locationData._id;
+        response.locationId = "5540acd6d80bd368de2f4bd3";//$scope.locationData._id;
         response.language = "en";
-        response.totalTimeTaken = 1430224137511;
+        response.totalTimeTaken = "";
         response.status = "complete";
-        response.sourceOS = "android v4.4.2";
-        response.surveyId = $scope.surveyData._id;
-        response.brandId = $scope.locationData.brand._id;
+        response.sourceOS = "";
+        response.surveyId = "5540b163d80bd368de2f4bd5";//$scope.surveyData._id;
+        response.brandId = "5540ac51d80bd368de2f4bd1";//$scope.locationData.brand._id;
         response.responses = [
             {
                 "data": [
                     {
-                        "value": $scope.regNumber,
-                        "questionId": $scope.surveyData.questions[0].survey[0]._id,
+                        "value": $rootScope.airport.regNumber,
+                        "questionId": "5540b163d80bd368de2f4bdc",//$scope.surveyData.questions[0].survey[0]._id,
                         "timeTaken": new Date()
                     },
                     {
                         "value": $scope.favAirport,
-                        "questionId": $scope.surveyData.questions[0].survey[1]._id,
+                        "questionId": "5540b163d80bd368de2f4bd9",//$scope.surveyData.questions[0].survey[1]._id,
                         "timeTaken": new Date()
                     }
                 ],
@@ -226,24 +299,128 @@ app.controller("AppCtrl", ['$scope', '$cordovaBarcodeScanner', '$http', 'FlightD
             }
         ];
 
-    console.log(response);
+        $scope.storeLocalResponseData(response);
 
-    }
 
-    $scope.clearFields = function() {
-        console.log("clearing");
-        $scope.regNumber = '';
-        $scope.favAirport = '';
-    }
+    };
+
+    $rootScope.sendToCloud = function() {
+
+        //var type = $cordovaNetwork.getNetwork();
+        var isOnline = $cordovaNetwork.isOnline();
+        //var isOffline = $cordovaNetwork.isOffline();
+
+        //console.log("Are we online: " + isOnline);
+
+        if(isOnline) {
+            try {
+                var data = {"responses": JSON.stringify($scope.getLocalResponseData())};
+
+                // Simple POST request:
+                $http.post(globals.responseUri, data).
+                    success(function (data, status, headers, config) {
+                        // this callback will be called asynchronously
+                        // when the response is available
+                        //console.log("Success:" + $scope.data);
+
+                        //removing whole responseData object assuming all data was successfully stored in DB
+                        window.localStorage.removeItem('responseData');
+                        $scope.goToHome();
+
+                    }).
+                    error(function (data, status, headers, config) {
+                        // called asynchronously if an error occurs
+                        // or server returns response with an error status.
+                        console.log("something went wrong while trying posting response to cloud");
+                    });
+            } catch(e) {
+                console.error("Error in syncing: " + e.message);
+            }
+        }
+
+        /*
+        // listen for Online event
+        $rootScope.$on('$cordovaNetwork:online', function(event, networkState){
+            var onlineState = networkState;
+        })
+
+        // listen for Offline event
+        $rootScope.$on('$cordovaNetwork:offline', function(event, networkState){
+            var offlineState = networkState;
+        })*/
+
+    };
 
 }]);
 
-app.controller('HomeTabCtrl', function($scope) {
+app.controller('HomeTabCtrl', function($scope, $cordovaFile) {
     console.log('HomeTabCtrl');
+
+
+ ionic.Platform.ready(function() {
+     try {
+//         $cordovaFile.checkFile(cordova.file.externalApplicationStorageDirectory, "responses.json")
+         $cordovaFile.checkFile(cordova.file.externalApplicationStorageDirectory, "responses.json")
+             .then(function (success) {
+                 // success
+                 console.log("responses.json was found");
+
+             }, function (error) {
+                 // error
+                 console.log("error in finding responses.txt.. trying to create responses.json");
+                 $cordovaFile.createFile(cordova.file.externalApplicationStorageDirectory, "responses.json", false)
+                     .then(function (success) {
+                         // success
+                         console.log("responses.json was created");
+                     }, function (error) {
+                         // error
+                         console.log("error in creating responses.json");
+                     });
+             });
+     } catch(e){
+         console.error("Error checking the file in file system: " + e.message);
+     }
 });
 
-app.controller('IntroCtrl', ['$scope', function($scope) {
+    /*
+    $scope.airport = { "countLocalResponses": ''};
+
+    var countLocalResponseData = function() {
+        if(window.localStorage.getItem('responseData')) {
+            console.log(JSON.parse(window.localStorage.getItem('responseData')).length);
+            return JSON.parse(window.localStorage.getItem('responseData')).length;
+        }
+        return 0;
+    }
+
+    globals.countLocalResponses = countLocalResponseData();
+    $scope.airport.countLocalResponses = globals.countLocalResponses;
+    */
+});
+
+app.controller('IntroCtrl', ['$scope', '$timeout', '$cordovaFileTransfer' , function($scope, $timeout) {
     console.log('IntroCtrl');
+/*
+    document.addEventListener('deviceready', function () {
+
+        var url = "http://cdn.wall-pix.net/albums/art-space/00030109.jpg";
+        var targetPath = cordova.file.documentsDirectory + "testImage.png";
+        var trustHosts = true;
+        var options = {};
+
+        $cordovaFileTransfer.download(url, targetPath, options, trustHosts)
+            .then(function(result) {
+                // Success!
+                alert(targetPath + ">>>");
+            }, function(err) {
+                // Error
+            }, function (progress) {
+                $timeout(function () {
+                    $scope.downloadProgress = (progress.loaded / progress.total) * 100;
+                })
+            });
+
+    }, false);*/
 }]);
 
 app.factory('FlightDataService', function($q, $timeout) {
@@ -251,6 +428,57 @@ app.factory('FlightDataService', function($q, $timeout) {
     var searchAirlines = function(searchFilter) {
 
         console.log('Searching airlines for ' + searchFilter);
+        /*
+        var choices = [];
+
+        angular.forEach(airlines, function(airline) {
+            var choice = {};
+            choice.textEN = airline.name + ' (' + airline.iata + ')';
+            choice.textAR = " اختيار",
+            choice.value = airline.name + ' (' + airline.iata + ')';
+            choice.notify = false;
+            choice.goto = null;
+            choices.push(choice);
+        });
+
+        console.log(choices);
+        */
+
+        var dxbResponses = [];
+
+        var regNum = Math.floor((Math.random() * 1000000000) + 1);
+
+        for(var i=0; i < 286; i++){
+
+
+            var response = {};
+            response.dateTaken = new Date() - 1;
+            response.locationId = "5540acd6d80bd368de2f4bd3";//$scope.locationData._id;
+            response.language = "en";
+            response.totalTimeTaken = "";
+            response.status = "complete";
+            response.sourceOS = "";
+            response.surveyId = "5540b163d80bd368de2f4bd5";//$scope.surveyData._id;
+            response.brandId = "5540ac51d80bd368de2f4bd1";//$scope.locationData.brand._id;
+            response.responses = [
+                {
+                    "data": [
+                        {
+                            "value": $rootScope.airport.regNumber,
+                            "questionId": "5540b163d80bd368de2f4bdc",//$scope.surveyData.questions[0].survey[0]._id,
+                            "timeTaken": new Date()
+                        },
+                        {
+                            "value": $scope.favAirport,
+                            "questionId": "5540b163d80bd368de2f4bd9",//$scope.surveyData.questions[0].survey[1]._id,
+                            "timeTaken": new Date()
+                        }
+                    ],
+                    "prompt": []
+                }
+            ];
+
+        }
 
         var deferred = $q.defer();
 
